@@ -1,6 +1,3 @@
-// server.js — FamilyVault Express API
-// Run: node server.js (make sure .env is configured first)
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -30,15 +27,14 @@ app.use(express.json());
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
 
-mongoose.connect(process.env.MONGO_URI)
+const mongoUri = process.env.MONGO_URI_B64
+  ? Buffer.from(process.env.MONGO_URI_B64, "base64").toString("utf8")
+  : process.env.MONGO_URI; // fallback for local .env
+
+mongoose.connect(mongoUri)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => { console.error("❌ MongoDB error:", err); process.exit(1); });
-
 // ─── Encryption Helpers (AES-256-GCM) ────────────────────────────────────────
-// Passwords are never stored in plaintext — encrypted before write, decrypted on read.
-
-//const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex"); // 32-byte key as hex
-
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
 if (!process.env.ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
   throw new Error("ENCRYPTION_KEY must be a 64-character hex string (32 bytes)");
@@ -147,7 +143,7 @@ function requireAuth(req, res, next) {
 if (!userId || !role || !familyId) {
   return res.status(401).json({ error: "Malformed token payload" });
 }
-req.user = { userId, role, familyId }; // never trust extra fields either
+req.user = { userId, role, familyId }; 
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -465,7 +461,6 @@ const update = {
   ...(req.body.notes && { notes: req.body.notes }),
   ...(req.body.icon && { icon: req.body.icon }),
   ...(req.body.color && { color: req.body.color }),
-  // etc.
   updatedAt: new Date(),
 };
   if (password) update.encryptedPass = encrypt(password);
